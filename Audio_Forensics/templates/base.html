@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Аудио експертиза{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="logo">◉</span> Аудио експертиза
+    </a>
+    <span class="subtitle">Система за откриване на манипулирани и синтетично генерирани аудио записи</span>
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

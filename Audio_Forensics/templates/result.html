@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Резултат – {{ r.filename }}{% endblock %}
+{% block content %}
+{% set m = r.manipulation %}{% set a = r.ai_detection %}
+<div class="result-head">
+  <div>
+    <h1>{{ r.filename }}</h1>
+    <p class="muted">{{ r.info.duration_s }} s · {{ r.info.sample_rate }} Hz · {{ r.info.bit_depth }} бита ·
+      {{ r.info.channels }} канал(а) · анализ за {{ r.elapsed_s }} s</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('index') }}">Нов анализ</a>
+  </div>
+</div>
+<audio controls src="{{ audio_src }}" class="player"></audio>
+
+<section class="grid2">
+  <div class="card verdict level-{{ m.level }}">
+    <div class="label">Манипулация</div>
+    <div class="big">{{ m.score|round|int }}%</div>
+    <div class="vtext">{{ m.verdict }}</div>
+    <div class="meter"><span style="width: {{ m.score }}%"></span></div>
+  </div>
+  <div class="card verdict level-{{ a.level }}">
+    <div class="label">Генериран с ИИ</div>
+    <div class="big">{{ a.probability|round|int }}%</div>
+    <div class="vtext">{{ a.verdict }}</div>
+    <div class="meter"><span style="width: {{ a.probability }}%"></span></div>
+  </div>
+</section>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="t-manip">Анализ за манипулации</button>
+  <button class="tab" data-tab="t-ai">AI агент</button>
+  <button class="tab" data-tab="t-info">Технически данни</button>
+</nav>
+
+<section id="t-manip" class="tabpanel">
+  <div class="card">
+    <h2>Проверки</h2>
+    <table class="findings">
+      <thead><tr><th>Проверка</th><th>Резултат</th><th>Принос</th><th>Обяснение</th></tr></thead>
+      <tbody>
+      {% for f in m.findings %}
+        <tr>
+          <td><b>{{ f.title }}</b></td>
+          <td><span class="badge st-{{ f.status|replace('/', '') }}">{{ f.status_label }}</span></td>
+          <td class="num">{{ (f.score * 100)|round|int }}%</td>
+          <td>{{ f.description }}
+            {% if f.events %}<div class="muted small">Моменти: {% for e in f.events[:12] %}{{ '%.2f'|format(e) }} s{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+            {% if f.regions %}<div class="muted small">Участъци: {% for g in f.regions[:8] %}{{ '%.2f'|format(g[0]) }}–{{ '%.2f'|format(g[1]) }} s{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card plots">
+    {% for key in ['waveform', 'spectrogram', 'noise', 'enf', 'ltas'] %}
+      {% if plots.manipulation[key] %}<img src="data:image/png;base64,{{ plots.manipulation[key] }}" alt="{{ key }}">{% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<section id="t-ai" class="tabpanel" hidden>
+  <div class="card">
+    <h2>Разсъждения на агента</h2>
+    <ol class="trace">
+      {% for step in a.trace %}
+        <li class="step step-{{ step.type }}">
+          <span class="step-type">
+            {% if step.type == 'plan' %}План{% elif step.type == 'decision' %}Решение{% elif step.type == 'observation' %}{{ step.tool }}{% elif step.type == 'note' %}Бележка{% else %}Извод{% endif %}
+          </span>
+          {% if step.vote is defined %}
+            <span class="vote {{ 'pos' if step.vote > 0 else ('neg' if step.vote < 0 else 'zero') }}">{{ '%+.2f'|format(step.vote) }}</span>
+          {% endif %}
+          <span class="step-text">{{ step.text }}</span>
+        </li>
+      {% endfor %}
+    </ol>
+    <p class="muted small">{% for c in a.components %}{{ c.name }}: <b>{{ c.probability }}%</b>{% if not loop.last %} · {% endif %}{% endfor %}.
+      Положителен глас (+) говори за синтетичен запис, отрицателен (−) – за естествен.</p>
+  </div>
+  <div class="card plots">
+    {% if plots.ai.deep %}<img src="data:image/png;base64,{{ plots.ai.deep }}" alt="невронна мрежа">{% endif %}
+    <img src="data:image/png;base64,{{ plots.ai.votes }}" alt="гласове">
+    <img src="data:image/png;base64,{{ plots.ai.f0 }}" alt="основен тон">
+    <img src="data:image/png;base64,{{ plots.ai.mfcc }}" alt="MFCC">
+  </div>
+</section>
+
+<section id="t-info" class="tabpanel" hidden>
+  <div class="grid2">
+    <div class="card">
+      <h2>Файл</h2>
+      <table class="kv">{% for k, v in r.info.items() %}<tr><td title="{{ k }}">{{ k|label }}</td><td>{{ v|display_value }}</td></tr>{% endfor %}</table>
+    </div>
+    <div class="card">
+      <h2>Признаци за AI агента</h2>
+      <table class="kv">{% for k, v in a.features.items() %}<tr><td title="{{ k }}">{{ k|label }}</td><td>{{ v|display_value }}</td></tr>{% endfor %}</table>
+    </div>
+  </div>
+</section>
+
+<p class="disclaimer">Резултатите са вероятностна оценка, получена чрез автоматизиран анализ, и не са
+  заместител на съдебно-техническа експертиза.</p>
+
+<script>
+  document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tabpanel').forEach(p => p.hidden = p.id !== btn.dataset.tab);
+  }));
+</script>
+{% endblock %}

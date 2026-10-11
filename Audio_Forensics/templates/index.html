@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card hero">
+  <h1>Анализ на аудио запис</h1>
+  <p class="lead">Качете <b>.wav</b> файл. Системата ще провери дали записът е <b>манипулиран</b>
+    (монтаж, изрязване, вмъкване, копиране) и дали е <b>генериран с изкуствен интелект</b>.</p>
+
+  <form id="upload-form" action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data">
+    <label id="drop" class="drop">
+      <input id="file" type="file" name="audio" accept=".wav,audio/wav" required>
+      <span class="drop-icon">⇪</span>
+      <span id="drop-text">Изберете или пуснете тук .wav файл</span>
+    </label>
+    <button id="submit" class="btn" type="submit">Анализирай</button>
+  </form>
+  <div id="loading" class="loading" hidden>
+    <div class="spinner"></div> Анализът се изпълнява… (обикновено отнема няколко секунди)
+  </div>
+</section>
+
+{% if samples %}
+<section class="card">
+  <h2>Примерни записи</h2>
+  <p class="muted">Примерни записи за показване на резултатите от различните проверки.</p>
+  <div class="samples">
+    {% for s in samples %}
+      <a class="chip" href="{{ url_for('analyze_sample', name=s) }}">{{ s }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="grid2">
+  <div class="card">
+    <h2>1. Откриване на манипулации</h2>
+    <ul class="list">
+      <li>Резки прекъсвания на вълновата форма (залепване без преход)</li>
+      <li>Участъци с цифрова тишина</li>
+      <li>Промени във фоновия шум</li>
+      <li>Нееднородна честотна лента и следи от компресия</li>
+      <li>ENF анализ – фаза на мрежовата честота 50 Hz</li>
+      <li>Копирани (повторени) сегменти</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>2. AI агент за синтетичен глас</h2>
+    <ul class="list">
+      <li>Честотна лента, типична за TTS модели</li>
+      <li>„Перфектна“ тишина и липса на фонов шум</li>
+      <li>Стабилност на тона (jitter), интонация, shimmer</li>
+      <li>Ритъм на паузите и артефакти от вокодер</li>
+      <li>Невронна мрежа CNN + BiLSTM върху MFCC:
+        {% if deep_loaded %}<b class="ok-text">заредена</b>{% else %}<span class="muted">не е обучена (python train_deep.py)</span>{% endif %}
+      </li>
+      <li>Random Forest върху MFCC признаци:
+        {% if model_loaded %}<b class="ok-text">зареден</b>{% else %}<span class="muted">не е обучен (python train_model.py)</span>{% endif %}
+      </li>
+    </ul>
+  </div>
+</section>
+
+<script>
+  const input = document.getElementById('file');
+  const drop = document.getElementById('drop');
+  const text = document.getElementById('drop-text');
+  input.addEventListener('change', () => { if (input.files.length) text.textContent = input.files[0].name; });
+  ['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', ev => {
+    ev.preventDefault();
+    if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; text.textContent = input.files[0].name; }
+  });
+  document.getElementById('upload-form').addEventListener('submit', () => {
+    document.getElementById('loading').hidden = false;
+    document.getElementById('submit').disabled = true;
+  });
+</script>
+{% endblock %}
